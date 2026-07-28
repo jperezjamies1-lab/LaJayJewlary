@@ -1,0 +1,399 @@
+// Jay La Joyería — Database Schema
+// Relational DB (PostgreSQL recommended for prod; works with SQLite for local dev)
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------- CORE COMMERCE ----------
+
+model Product {
+  id              String   @id @default(cuid())
+  name            String
+  slug            String   @unique
+  description     String
+  price           Decimal  @db.Decimal(10, 2)
+  salePrice       Decimal? @db.Decimal(10, 2)
+  sku             String   @unique
+  barcode         String?
+  material        String?
+  weightGrams     Decimal? @db.Decimal(10, 2)
+  brand           String?
+  status          ProductStatus @default(DRAFT)
+  featured        Boolean  @default(false)
+  seoTitle        String?
+  seoDescription  String?
+  publishAt       DateTime?
+
+  collectionId    String?
+  collection      Collection? @relation(fields: [collectionId], references: [id])
+  categoryId      String?
+  category        Category?   @relation(fields: [categoryId], references: [id])
+
+  images          MediaAsset[]
+  variants        ProductVariant[]
+  tags            ProductTag[]
+  reviews         Review[]
+  orderItems      OrderItem[]
+  wishlistItems   WishlistItem[]
+  cartItems       CartItem[]
+  inventory       InventoryRecord?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([status])
+  @@index([collectionId])
+  @@index([categoryId])
+}
+
+enum ProductStatus {
+  DRAFT
+  ACTIVE
+  HIDDEN
+  ARCHIVED
+  SOLD_OUT
+}
+
+model ProductVariant {
+  id         String   @id @default(cuid())
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  name       String   // e.g. "Ring Size 7", "Gold / Silver"
+  sku        String   @unique
+  priceDelta Decimal  @default(0) @db.Decimal(10, 2)
+  stock      Int      @default(0)
+}
+
+model Collection {
+  id          String    @id @default(cuid())
+  name        String
+  slug        String    @unique
+  description String?
+  bannerUrl   String?
+  featured    Boolean   @default(false)
+  visible     Boolean   @default(true)
+  sortOrder   Int       @default(0)
+  scheduledAt DateTime?
+  products    Product[]
+}
+
+model Category {
+  id       String    @id @default(cuid())
+  name     String
+  slug     String    @unique
+  products Product[]
+}
+
+model ProductTag {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  products  Product[]
+}
+
+model MediaAsset {
+  id         String   @id @default(cuid())
+  url        String
+  type       MediaType @default(IMAGE)
+  altText    String?
+  folder     String?  // Products, Collections, Homepage, Reviews, Videos, Logos...
+  productId  String?
+  product    Product? @relation(fields: [productId], references: [id])
+  createdAt  DateTime @default(now())
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+  PDF
+}
+
+model InventoryRecord {
+  id           String   @id @default(cuid())
+  productId    String   @unique
+  product      Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  stock        Int      @default(0)
+  reserved     Int      @default(0)
+  lowStockAt   Int      @default(3)
+  incoming     Int      @default(0)
+  updatedAt    DateTime @updatedAt
+}
+
+// ---------- CUSTOMERS & ORDERS ----------
+
+model Customer {
+  id                String   @id @default(cuid())
+  email             String   @unique
+  passwordHash      String?  // null for guest checkouts that never set a password
+  name              String?
+  phone             String?
+  language          String   @default("en") // en | es
+  vipStatus         Boolean  @default(false)
+  blocked           Boolean  @default(false)
+  notes             String?
+  emailVerified     Boolean  @default(false)
+  verificationToken String?  @unique
+  resetToken        String?  @unique
+  resetTokenExpires DateTime?
+  addresses         Address[]
+  orders            Order[]
+  reviews           Review[]
+  wishlist          WishlistItem[]
+  aiSessions        AiConversation[]
+  createdAt         DateTime @default(now())
+}
+
+model Address {
+  id         String   @id @default(cuid())
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  line1      String
+  line2      String?
+  city       String
+  state      String
+  zip        String
+  country    String
+}
+
+model Order {
+  id             String      @id @default(cuid())
+  orderNumber    String      @unique
+  customerId     String
+  customer       Customer    @relation(fields: [customerId], references: [id])
+  status         OrderStatus @default(PENDING)
+  items          OrderItem[]
+  subtotal       Decimal     @db.Decimal(10, 2)
+  shipping       Decimal     @default(0) @db.Decimal(10, 2)
+  discount       Decimal     @default(0) @db.Decimal(10, 2)
+  total          Decimal     @db.Decimal(10, 2)
+  paymentMethod   String?     // Zelle, etc.
+  paymentVerified Boolean     @default(false)
+  paymentScreenshotUrl String?
+  shippingAddressJson Json?
+  trackingNumber String?
+  shippingLabel  String?
+  notes          String?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+}
+
+enum OrderStatus {
+  PENDING
+  PAYMENT_VERIFICATION
+  CONFIRMED
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+model OrderItem {
+  id         String   @id @default(cuid())
+  orderId    String
+  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id])
+  quantity   Int
+  price      Decimal  @db.Decimal(10, 2)
+}
+
+model Cart {
+  id         String     @id @default(cuid())
+  customerId String?    @unique
+  sessionId  String?    @unique // guest cart, keyed by an httpOnly cookie token
+  items      CartItem[]
+  updatedAt  DateTime   @updatedAt
+  createdAt  DateTime   @default(now())
+}
+
+model CartItem {
+  id        String  @id @default(cuid())
+  cartId    String
+  cart      Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  variantId String?
+  quantity  Int     @default(1)
+
+  @@unique([cartId, productId, variantId])
+}
+
+model WishlistItem {
+  id         String   @id @default(cuid())
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@unique([customerId, productId])
+}
+
+model Review {
+  id         String   @id @default(cuid())
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id])
+  rating     Int
+  title      String?
+  body       String?
+  photoUrls  String[] @default([])
+  videoUrl   String?
+  verified   Boolean  @default(false)
+  approved   Boolean  @default(false)
+  featured   Boolean  @default(false)
+  createdAt  DateTime @default(now())
+}
+
+// ---------- MARKETING ----------
+
+model Coupon {
+  id            String       @id @default(cuid())
+  code          String       @unique
+  type          DiscountType
+  value         Decimal      @db.Decimal(10, 2)
+  minPurchase   Decimal?     @db.Decimal(10, 2)
+  vipOnly       Boolean      @default(false)
+  usageLimit    Int?
+  usedCount     Int          @default(0)
+  expiresAt     DateTime?
+  active        Boolean      @default(true)
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED_AMOUNT
+  FREE_SHIPPING
+}
+
+model Announcement {
+  id        String   @id @default(cuid())
+  message   String
+  active    Boolean  @default(true)
+  startsAt  DateTime?
+  endsAt    DateTime?
+}
+
+model NewsletterSubscriber {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  language  String   @default("en")
+  createdAt DateTime @default(now())
+}
+
+model LiveShoppingEvent {
+  id              String   @id @default(cuid())
+  title           String
+  scheduledAt     DateTime
+  bannerUrl       String?
+  depositAmount   Decimal  @db.Decimal(10, 2)
+  rules           String?
+  replayUrl       String?
+  featuredProducts String[] @default([])
+}
+
+// ---------- CONTENT / HOMEPAGE ----------
+
+model HomepageContent {
+  id          String  @id @default("singleton")
+  heroTitleEn String
+  heroTitleEs String
+  heroDescEn  String
+  heroDescEs  String
+  heroVideoUrl String?
+  heroImageUrl String?
+  sectionsJson Json    // ordered section config for drag-and-drop builder
+  updatedAt   DateTime @updatedAt
+}
+
+model Setting {
+  key         String @id
+  value       Json
+  updatedAt   DateTime @updatedAt
+}
+
+// ---------- AI CONCIERGE ----------
+
+model AiConversation {
+  id           String       @id @default(cuid())
+  customerId   String?
+  customer     Customer?    @relation(fields: [customerId], references: [id])
+  sessionId    String       // anonymous session token if no account
+  language     String       @default("en")
+  messages     AiMessage[]
+  escalated    Boolean      @default(false)
+  resolved     Boolean      @default(false)
+  createdAt    DateTime     @default(now())
+}
+
+model AiMessage {
+  id             String         @id @default(cuid())
+  conversationId String
+  conversation   AiConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role           String         // user | assistant
+  content        String
+  createdAt      DateTime       @default(now())
+}
+
+// ---------- ADMIN / SECURITY ----------
+
+model Admin {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  passwordHash  String
+  name          String
+  roleId        String
+  role          Role     @relation(fields: [roleId], references: [id])
+  twoFactorOn   Boolean  @default(false)
+  lastLoginAt   DateTime?
+  createdAt     DateTime @default(now())
+}
+
+model Role {
+  id          String   @id @default(cuid())
+  name        String   @unique // Owner, Administrator, Manager, Inventory Manager, Customer Support, Marketing, Content Editor, Analytics Viewer
+  permissions Json     // list of permission strings
+  admins      Admin[]
+}
+
+model ActivityLog {
+  id        String   @id @default(cuid())
+  adminId   String?
+  action    String
+  entity    String?
+  entityId  String?
+  ipAddress String?
+  createdAt DateTime @default(now())
+}
+
+// ---------- SUPPORT ----------
+
+model SupportTicket {
+  id         String   @id @default(cuid())
+  customerId String?
+  subject    String
+  message    String
+  channel    String   // live_chat | email | whatsapp | contact_form
+  status     String   @default("open")
+  createdAt  DateTime @default(now())
+}
+
+// ---------- ANALYTICS (aggregated snapshots; raw events go to a separate pipeline in prod) ----------
+
+model AnalyticsSnapshot {
+  id            String   @id @default(cuid())
+  date          DateTime @unique
+  revenue       Decimal  @db.Decimal(10, 2)
+  orders        Int
+  visitors      Int
+  conversionPct Decimal  @db.Decimal(5, 2)
+  topProductId  String?
+}
