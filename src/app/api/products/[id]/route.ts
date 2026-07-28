@@ -5,6 +5,9 @@ import { logActivity } from "@/lib/log";
 import { deletePublicMedia, pathFromPublicUrl } from "@/lib/storage/supabase";
 import { z } from "zod";
 
+// Reads the session cookie (admin or customer) — never statically rendered/cached.
+export const dynamic = "force-dynamic";
+
 const UpdateProductSchema = z.object({
   name: z.string().min(1).optional(),
   description: z.string().optional(),

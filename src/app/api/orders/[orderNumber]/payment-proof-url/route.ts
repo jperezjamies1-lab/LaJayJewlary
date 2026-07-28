@@ -4,6 +4,9 @@ import { getCustomerSession } from "@/lib/auth/customer";
 import { getAdminSession } from "@/lib/auth/admin";
 import { getSignedPaymentProofUrl } from "@/lib/storage/supabase";
 
+// Reads the session cookie (admin or customer) — never statically rendered/cached.
+export const dynamic = "force-dynamic";
+
 export async function GET(_req: NextRequest, { params }: { params: { orderNumber: string } }) {
   const order = await prisma.order.findUnique({ where: { orderNumber: params.orderNumber } });
   if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });

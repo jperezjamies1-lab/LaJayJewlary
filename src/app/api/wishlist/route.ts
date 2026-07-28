@@ -3,6 +3,9 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { getCustomerSession } from "@/lib/auth/customer";
 
+// Reads the session cookie (admin or customer) — never statically rendered/cached.
+export const dynamic = "force-dynamic";
+
 const Schema = z.object({ productId: z.string() });
 
 export async function GET() {

@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAdmin, AdminAuthError } from "@/lib/auth/admin";
 
+// requireAdmin() reads the admin session cookie via cookies() — this route
+// must never be statically rendered/cached.
+export const dynamic = "force-dynamic";
+
 function csvEscape(value: unknown) {
   const s = String(value ?? "");
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;

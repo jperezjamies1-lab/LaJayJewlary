@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCustomerSession } from "@/lib/auth/customer";
 
+// Reads the session cookie (admin or customer) — never statically rendered/cached.
+export const dynamic = "force-dynamic";
+
 export async function GET(_req: NextRequest, { params }: { params: { orderNumber: string } }) {
   const order = await prisma.order.findUnique({
     where: { orderNumber: params.orderNumber },

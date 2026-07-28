@@ -4,6 +4,9 @@ import { prisma } from "@/lib/db";
 import { requireAdmin, AdminAuthError } from "@/lib/auth/admin";
 import { logActivity } from "@/lib/log";
 
+// Reads the session cookie (admin or customer) — never statically rendered/cached.
+export const dynamic = "force-dynamic";
+
 // Public storefront read — only ever returns ACTIVE products, real DB only.
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
