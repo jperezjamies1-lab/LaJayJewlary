@@ -8,10 +8,29 @@ import { getCustomerSession } from "@/lib/auth/customer";
 import { prisma } from "@/lib/db";
 import { logActivity } from "@/lib/log";
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const AI_SESSION_COOKIE = "jay_ai_session";
 
 export async function POST(req: NextRequest) {
+  // ANTHROPIC_API_KEY is optional site-wide. The Anthropic SDK throws at
+  // construction time if no key is present, so this is checked — and the
+  // client only ever constructed — inside the request handler, never at
+  // module scope, so a missing key can never break a cold start or a build.
+  if (!process.env.ANTHROPIC_API_KEY) {
+    const { locale = "es" } = await req.json().catch(() => ({ locale: "es" }));
+    return NextResponse.json(
+      {
+        reply:
+          locale === "es"
+            ? "Asistente no disponible por el momento."
+            : "Assistant unavailable at the moment.",
+        disabled: true,
+      },
+      { status: 200 }
+    );
+  }
+
+  const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
   try {
     const { messages, locale = "es" } = (await req.json()) as {
       messages: { role: "user" | "assistant"; content: string }[];

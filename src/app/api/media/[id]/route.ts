@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAdmin, AdminAuthError } from "@/lib/auth/admin";
-import { deleteFromR2, keyFromPublicUrl } from "@/lib/storage/r2";
+import { deletePublicMedia, pathFromPublicUrl } from "@/lib/storage/supabase";
 import { logActivity } from "@/lib/log";
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
@@ -30,12 +30,12 @@ export async function DELETE(_req: NextRequest, { params }: { params: { id: stri
     const asset = await prisma.mediaAsset.findUnique({ where: { id: params.id } });
     if (!asset) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-    const key = keyFromPublicUrl(asset.url);
-    if (key) {
+    const path = pathFromPublicUrl(asset.url);
+    if (path) {
       try {
-        await deleteFromR2(key);
+        await deletePublicMedia(path);
       } catch (e) {
-        console.error("R2 delete failed (continuing to remove DB record):", e);
+        console.error("Supabase Storage delete failed (continuing to remove DB record):", e);
       }
     }
 

@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import AdminOrderActions from "@/components/admin/AdminOrderActions";
+import PaymentProofViewer from "@/components/admin/PaymentProofViewer";
 import { formatPrice } from "@/lib/utils";
 
 export default async function AdminOrderDetailPage({ params }: { params: { orderNumber: string } }) {
@@ -45,14 +46,7 @@ export default async function AdminOrderDetailPage({ params }: { params: { order
         <p className="eyebrow mb-3">Payment</p>
         <p className="text-sm text-ivory/70 mb-2">Method: {order.paymentMethod ?? "—"}</p>
         {order.paymentScreenshotUrl ? (
-          <a
-            href={order.paymentScreenshotUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="text-gold text-sm underline"
-          >
-            View payment screenshot →
-          </a>
+          <PaymentProofViewer orderNumber={order.orderNumber} />
         ) : (
           <p className="text-sm text-ivory/40">No payment screenshot uploaded yet.</p>
         )}

@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCustomerSession } from "@/lib/auth/customer";
-import { uploadToR2 } from "@/lib/storage/r2";
+import { uploadPaymentProof } from "@/lib/storage/supabase";
 import { logActivity } from "@/lib/log";
 
 export const runtime = "nodejs";
 
-const ALLOWED = new Set(["image/jpeg", "image/png", "image/webp", "application/pdf"]);
-const MAX_BYTES = 10 * 1024 * 1024;
+// Per spec: payment screenshots are JPEG/PNG/WebP only, no PDF.
+const ALLOWED = new Set(["image/jpeg", "image/png", "image/webp"]);
+const MAX_BYTES = 8 * 1024 * 1024; // 8MB
 
 export async function POST(req: NextRequest, { params }: { params: { orderNumber: string } }) {
   const customer = await getCustomerSession();
@@ -27,19 +28,28 @@ export async function POST(req: NextRequest, { params }: { params: { orderNumber
     return NextResponse.json({ error: "No file provided" }, { status: 400 });
   }
   if (!ALLOWED.has(file.type)) {
-    return NextResponse.json({ error: "Please upload a JPG, PNG, or PDF." }, { status: 415 });
+    return NextResponse.json({ error: "Please upload a JPG, PNG, or WebP image." }, { status: 415 });
   }
   if (file.size > MAX_BYTES) {
-    return NextResponse.json({ error: "File exceeds 10MB limit." }, { status: 413 });
+    return NextResponse.json({ error: "File exceeds the 8MB limit." }, { status: 413 });
   }
 
   const buffer = Buffer.from(await file.arrayBuffer());
-  const key = `payment-proofs/${order.orderNumber}-${Date.now()}`;
-  const url = await uploadToR2({ key, body: buffer, contentType: file.type });
+
+  // Stored in the private payment-proofs bucket. `paymentScreenshotUrl`
+  // holds a Storage *path*, not a public URL — the bucket is private, so
+  // viewing it always goes through /api/orders/[orderNumber]/payment-proof-url
+  // to mint a short-lived signed URL for an authorized viewer.
+  const { path } = await uploadPaymentProof({
+    orderNumber: order.orderNumber,
+    fileName: file.name,
+    body: buffer,
+    contentType: file.type,
+  });
 
   const updated = await prisma.order.update({
     where: { id: order.id },
-    data: { paymentScreenshotUrl: url, status: "PAYMENT_VERIFICATION" },
+    data: { paymentScreenshotUrl: path, status: "PAYMENT_VERIFICATION" },
   });
 
   await logActivity({
@@ -49,5 +59,5 @@ export async function POST(req: NextRequest, { params }: { params: { orderNumber
     entityId: order.id,
   });
 
-  return NextResponse.json({ order: { status: updated.status, paymentScreenshotUrl: url } });
+  return NextResponse.json({ order: { status: updated.status } });
 }

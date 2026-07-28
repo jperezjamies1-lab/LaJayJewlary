@@ -13,7 +13,7 @@ interface OrderDetail {
   discount: number;
   total: number;
   paymentVerified: boolean;
-  paymentScreenshotUrl: string | null;
+  hasPaymentProof: boolean;
   trackingNumber: string | null;
   createdAt: string;
   items: { name: string; image?: string; quantity: number; price: number }[];
@@ -52,7 +52,7 @@ export default function OrderStatusPanel({ order: initial }: { order: OrderDetai
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Upload failed");
-      setOrder((o) => ({ ...o, status: data.order.status, paymentScreenshotUrl: data.order.paymentScreenshotUrl }));
+      setOrder((o) => ({ ...o, status: data.order.status, hasPaymentProof: true }));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Upload failed");
     } finally {

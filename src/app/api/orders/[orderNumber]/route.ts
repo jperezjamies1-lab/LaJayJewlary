@@ -25,7 +25,7 @@ export async function GET(_req: NextRequest, { params }: { params: { orderNumber
       discount: Number(order.discount),
       total: Number(order.total),
       paymentVerified: order.paymentVerified,
-      paymentScreenshotUrl: order.paymentScreenshotUrl,
+      hasPaymentProof: !!order.paymentScreenshotUrl,
       trackingNumber: order.trackingNumber,
       createdAt: order.createdAt,
       items: order.items.map((i) => ({

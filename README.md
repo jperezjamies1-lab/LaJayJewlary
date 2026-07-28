@@ -53,7 +53,7 @@ for all of them.
 
 ```bash
 npm install
-cp .env.example .env   # fill in DATABASE_URL, ANTHROPIC_API_KEY, JWT_SECRET
+cp .env.example .env   # fill in DATABASE_URL, JWT_SECRET, Supabase keys — ANTHROPIC_API_KEY is optional
 npm run db:push
 npm run db:seed        # creates the admin account from ADMIN_EMAIL / ADMIN_PASSWORD / ADMIN_NAME in .env
 npm run dev
@@ -74,10 +74,11 @@ npx wrangler hyperdrive create jay-la-joyeria-db --connection-string="$DATABASE_
 
 # 2. Set secrets (these are NOT read from .env in production)
 npx wrangler secret put JWT_SECRET
-npx wrangler secret put ANTHROPIC_API_KEY
-npx wrangler secret put RESEND_API_KEY
-npx wrangler secret put R2_ACCESS_KEY_ID
-npx wrangler secret put R2_SECRET_ACCESS_KEY
+npx wrangler secret put SUPABASE_SERVICE_ROLE_KEY
+npx wrangler secret put NEXT_PUBLIC_SUPABASE_URL
+npx wrangler secret put NEXT_PUBLIC_SUPABASE_ANON_KEY
+npx wrangler secret put RESEND_API_KEY        # optional — emails are skipped gracefully if unset
+npx wrangler secret put ANTHROPIC_API_KEY     # optional — AI widget hides itself if unset
 
 # 3. Build and deploy
 npm run build:worker

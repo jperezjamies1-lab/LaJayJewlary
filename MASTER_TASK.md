@@ -14,8 +14,8 @@ and I'll pick up from the first unchecked item.
   been run successfully in this sandbox — no network egress to
   binaries.prisma.sh or Cloudflare from here. Code is written correctly
   against documented patterns but unverified end-to-end.
-- Cannot provision a live Postgres DB, R2 bucket, Hyperdrive binding, or
-  email provider — code is env-var driven with zero mock fallback.
+- Cannot provision a live Postgres DB, Supabase project/buckets, Hyperdrive
+  binding, or email provider — code is env-var driven with zero mock fallback.
 
 ## Route audit — all now built and real
 - [x] /admin/dashboard/productos/nuevo, /[id]
@@ -90,3 +90,33 @@ and I'll pick up from the first unchecked item.
 - [ ] npm run build (depends on generated client)
 - [ ] npm run build:worker (depends on the above + live Cloudflare access)
 - [x] tsc --noEmit clean except the ungenerated-Prisma-client cascade (re-verify after this batch)
+
+
+## Storage migration: Cloudflare R2 -> Supabase Storage (owner has no payment card)
+- [x] Removed @aws-sdk R2 client entirely, replaced with @supabase/supabase-js
+- [x] Two buckets: public-media (public — products/logo/banners/collections/reviews),
+      payment-proofs (private — Zelle screenshots, signed URLs only, 5 min expiry)
+- [x] Media upload route, media delete route, product delete (cascade storage cleanup)
+      all moved to Supabase
+- [x] Payment screenshot upload now goes to the private bucket; DB field stores a
+      Storage *path*, never a public URL; a dedicated signed-URL endpoint
+      (owning customer or any admin only) is the only way to view one
+- [x] Public order API no longer returns the raw path at all — just a
+      hasPaymentProof boolean, to avoid leaking internal path structure
+- [x] File validation tightened to spec: product images JPEG/PNG/WebP/AVIF max 8MB,
+      payment screenshots JPEG/PNG/WebP (no PDF) max 8MB, unique collision-proof filenames
+- [x] .env.example: R2_* removed, NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY
+      / SUPABASE_SERVICE_ROLE_KEY added
+- [ ] Homepage editor / collection editor / reviews upload flows aren't built yet at
+      all (tracked above as pre-existing gaps) — when built, they should use
+      uploadPublicMedia() from src/lib/storage/supabase.ts, same as the product form
+
+## AI made fully optional (no Anthropic credits required)
+- [x] Anthropic client no longer constructed at module scope (was throwing on
+      missing key, which would have broken cold starts / builds)
+- [x] /api/ai/status — real endpoint the widget checks on mount
+- [x] AiConciergeWidget renders nothing when disabled — no button, no crash
+- [x] Chat route returns a graceful "Asistente no disponible por el momento" /
+      "Assistant unavailable" reply (200, not an error) if called anyway with no key
+- [x] Search, products, checkout, orders, and all admin features verified to have
+      no dependency on ANTHROPIC_API_KEY being set

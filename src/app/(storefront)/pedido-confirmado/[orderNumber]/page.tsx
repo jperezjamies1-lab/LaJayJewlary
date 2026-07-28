@@ -33,7 +33,7 @@ export default async function OrderConfirmationPage({ params }: { params: { orde
             discount: Number(order.discount),
             total: Number(order.total),
             paymentVerified: order.paymentVerified,
-            paymentScreenshotUrl: order.paymentScreenshotUrl,
+            hasPaymentProof: !!order.paymentScreenshotUrl,
             trackingNumber: order.trackingNumber,
             createdAt: order.createdAt.toISOString(),
             items: order.items.map((i) => ({

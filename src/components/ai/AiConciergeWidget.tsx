@@ -17,6 +17,7 @@ const QUICK_PROMPTS: Record<"en" | "es", string[]> = {
 
 export default function AiConciergeWidget({ locale = "es" as "en" | "es" }) {
   const [open, setOpen] = useState(false);
+  const [available, setAvailable] = useState<boolean | null>(null);
   const [messages, setMessages] = useState<AiChatMessage[]>([
     {
       id: "welcome",
@@ -30,8 +31,20 @@ export default function AiConciergeWidget({ locale = "es" as "en" | "es" }) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    fetch("/api/ai/status")
+      .then((r) => r.json())
+      .then((d) => setAvailable(!!d.enabled))
+      .catch(() => setAvailable(false));
+  }, []);
+
+  useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, open]);
+
+  // Not yet checked, or checked and unavailable: render nothing. No AI key
+  // configured means no button, no crash, everything else on the site
+  // (search, products, checkout, orders, admin) works exactly as normal.
+  if (available === null || available === false) return null;
 
   async function sendMessage(text: string) {
     if (!text.trim() || loading) return;

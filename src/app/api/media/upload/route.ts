@@ -1,21 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAdmin, AdminAuthError } from "@/lib/auth/admin";
-import { uploadToR2 } from "@/lib/storage/r2";
+import { uploadPublicMedia } from "@/lib/storage/supabase";
 import { logActivity } from "@/lib/log";
 
-export const runtime = "nodejs"; // R2 upload needs Node buffers; Edge variant would use streaming instead
+export const runtime = "nodejs";
 
-const ALLOWED_TYPES = new Set([
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-  "image/avif",
-  "video/mp4",
-  "video/quicktime",
-  "application/pdf",
-]);
-const MAX_BYTES = 25 * 1024 * 1024; // 25MB
+const IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/avif"]);
+const VIDEO_TYPES = new Set(["video/mp4", "video/quicktime"]);
+const PDF_TYPE = "application/pdf";
+
+const IMAGE_MAX_BYTES = 8 * 1024 * 1024; // 8MB, per spec
+const VIDEO_MAX_BYTES = 50 * 1024 * 1024; // videos aren't covered by the 8MB image/screenshot spec; kept generous but bounded
+const PDF_MAX_BYTES = 8 * 1024 * 1024;
 
 export async function POST(req: NextRequest) {
   try {
@@ -29,27 +26,42 @@ export async function POST(req: NextRequest) {
     if (!(file instanceof File)) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
     }
-    if (!ALLOWED_TYPES.has(file.type)) {
-      return NextResponse.json({ error: `Unsupported file type: ${file.type}` }, { status: 415 });
+
+    let maxBytes: number;
+    let mediaType: "IMAGE" | "VIDEO" | "PDF";
+    if (IMAGE_TYPES.has(file.type)) {
+      maxBytes = IMAGE_MAX_BYTES;
+      mediaType = "IMAGE";
+    } else if (VIDEO_TYPES.has(file.type)) {
+      maxBytes = VIDEO_MAX_BYTES;
+      mediaType = "VIDEO";
+    } else if (file.type === PDF_TYPE) {
+      maxBytes = PDF_MAX_BYTES;
+      mediaType = "PDF";
+    } else {
+      return NextResponse.json(
+        { error: `Unsupported file type: ${file.type}. Allowed: JPEG, PNG, WebP, AVIF, MP4, MOV, PDF.` },
+        { status: 415 }
+      );
     }
-    if (file.size > MAX_BYTES) {
-      return NextResponse.json({ error: "File exceeds 25MB limit" }, { status: 413 });
+
+    if (file.size > maxBytes) {
+      return NextResponse.json(
+        { error: `File exceeds the ${Math.round(maxBytes / (1024 * 1024))}MB limit for this type.` },
+        { status: 413 }
+      );
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
-    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "-");
-    const key = `${folder.toLowerCase()}/${Date.now()}-${safeName}`;
-
-    const url = await uploadToR2({ key, body: buffer, contentType: file.type });
-
-    const mediaType = file.type.startsWith("video")
-      ? "VIDEO"
-      : file.type === "application/pdf"
-      ? "PDF"
-      : "IMAGE";
+    const { publicUrl } = await uploadPublicMedia({
+      folder: folder.toLowerCase(),
+      fileName: file.name,
+      body: buffer,
+      contentType: file.type,
+    });
 
     const asset = await prisma.mediaAsset.create({
-      data: { url, type: mediaType, folder, productId },
+      data: { url: publicUrl, type: mediaType, folder, productId },
     });
 
     await logActivity({
