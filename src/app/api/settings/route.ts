@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { getSiteSettings } from "@/lib/settings";
 
+// Reads live DB state — never statically rendered or cached.
+export const dynamic = "force-dynamic";
+
 /**
  * Public, read-only settings endpoint: Browser -> fetch("/api/settings") ->
  * this Route Handler -> Prisma -> Database. No secrets in the payload.

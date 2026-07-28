@@ -3,6 +3,11 @@ import { getSiteSettings, updateSiteSettings } from "@/lib/settings";
 import { requireAdmin, AdminAuthError } from "@/lib/auth/admin";
 import { logActivity } from "@/lib/log";
 
+// Admin-only, security-sensitive, and reads live DB state — never statically
+// rendered or cached. (Belt-and-suspenders alongside the build-phase check
+// inside getSiteSettings() itself.)
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   const settings = await getSiteSettings();
   return NextResponse.json({ settings });
