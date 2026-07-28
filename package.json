@@ -1,20 +1,21 @@
 {
-  "name": "jay-la-joyeria",
+  "name": "💎jaylajoyeria",
   "version": "1.0.0",
   "private": true,
-  "description": "Jay La Joyer\u00eda \u2014 luxury jewelry e-commerce platform with AI Concierge and full admin CMS",
+  "description": "Jay La Joyería — luxury jewelry e-commerce platform with AI Concierge and full admin CMS",
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "prisma generate && next build",
     "start": "next start",
     "lint": "next lint",
+    "postinstall": "prisma generate",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
     "db:seed": "tsx prisma/seed.ts",
-    "build:worker": "opennextjs-cloudflare build",
-    "deploy": "opennextjs-cloudflare deploy",
-    "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview"
+    "build:worker": "prisma generate && opennextjs-cloudflare build",
+    "deploy": "prisma generate && opennextjs-cloudflare deploy",
+    "preview": "prisma generate && opennextjs-cloudflare build && opennextjs-cloudflare preview"
   },
   "dependencies": {
     "next": "^14.2.5",
