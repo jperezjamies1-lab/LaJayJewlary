@@ -29,15 +29,28 @@ export async function POST(req: NextRequest) {
 
     const cart = await getOrCreateCart();
 
-    const existing = await prisma.cartItem.findUnique({
-      where: {
-        cartId_productId_variantId: {
-          cartId: cart.id,
-          productId,
-          variantId: variantId ?? null,
-        },
-      },
-    }).catch(() => null); // composite unique with a null column needs a fallback lookup on some DBs
+    // The cartId_productId_variantId composite unique input requires
+    // variantId to be a real string — Prisma won't accept null there even
+    // though the column itself is nullable. So the composite lookup only
+    // runs when a variant was actually selected; a variant-less line item
+    // is looked up with a plain findFirst on variantId: null instead.
+    const existing = variantId
+      ? await prisma.cartItem.findUnique({
+          where: {
+            cartId_productId_variantId: {
+              cartId: cart.id,
+              productId,
+              variantId,
+            },
+          },
+        })
+      : await prisma.cartItem.findFirst({
+          where: {
+            cartId: cart.id,
+            productId,
+            variantId: null,
+          },
+        });
 
     const item = existing
       ? await prisma.cartItem.update({
