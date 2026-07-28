@@ -1,0 +1,92 @@
+# Jay La Joyería — Rebuild Checklist
+
+Tracks the rebuild against the route/functionality audit. Say "continue"
+and I'll pick up from the first unchecked item.
+
+## Ground rules being followed
+- No hardcoded product/order/customer/analytics arrays anywhere — everything through Prisma
+- No mock API responses, no sample products, no seeded demo data
+- Store starts with ZERO products until added via admin
+- Spanish (Mexico) is the default/primary language site-wide
+
+## Known hard limits (see chat for full explanation)
+- `npx prisma generate`, `npm run build`, and `npm run build:worker` have not
+  been run successfully in this sandbox — no network egress to
+  binaries.prisma.sh or Cloudflare from here. Code is written correctly
+  against documented patterns but unverified end-to-end.
+- Cannot provision a live Postgres DB, R2 bucket, Hyperdrive binding, or
+  email provider — code is env-var driven with zero mock fallback.
+
+## Route audit — all now built and real
+- [x] /admin/dashboard/productos/nuevo, /[id]
+- [x] /admin/dashboard/pedidos/[orderNumber]
+- [x] /admin/dashboard/clientes/[id]
+- [x] /admin/dashboard/ai — real conversation viewer (chat route now persists to DB)
+- [x] /admin/dashboard/descuentos — real coupon CRUD
+- [x] /admin/dashboard/media — real upload/search/rename/delete (R2 + DB)
+- [x] /admin/dashboard/live — real event scheduler
+- [x] /admin/dashboard/analytics — real DB-derived numbers only (no visitor/traffic-source tracking exists, so those are omitted rather than faked)
+- [x] /admin/dashboard/settings — full settings form
+- [x] /admin/dashboard/logs — searchable activity log viewer
+- [x] /api/admin/orders/export
+- [x] /cuenta/direcciones — real address CRUD
+- [x] /cuenta/pedidos/[orderNumber]
+- [x] /envios, /devoluciones, /privacidad, /terminos, /cuidado — DB-backed policy pages
+- [x] /live — real live shopping schedule
+
+## Homepage — fixed
+- [x] Unsplash hero removed
+- [x] "Autumn Collection" removed
+- [x] Hardcoded 18k gold / ethically sourced claim removed
+- [x] Zero products = polished Spanish empty state
+- [x] Real branding (/public/branding) used in hero
+
+## Spanish (Mexico) first — done
+- [x] jay_locale cookie + middleware browser-language auto-detection
+- [x] Working language switcher in header
+- [x] <html lang="es-MX">, Header/Footer/AI widget default to Spanish
+- [x] Homepage, product page, order status panel translated
+- [ ] Cart/checkout/login/register client pages still show English-first UI text (functional, just not yet translated — real remaining gap)
+
+## Admin settings — real
+- [x] Setting DB table + getSiteSettings()/updateSiteSettings()
+- [x] SiteSettingsProvider replacing hardcoded SITE constant everywhere (Header, Footer, OrderStatusPanel, checkout API, AI system prompt, root layout metadata/JSON-LD)
+- [x] Every field from the spec editable: name, email, phone, Zelle, WhatsApp, hours, social, shipping price/threshold, hero image, SEO, all 5 policy pages
+
+## Product management — real
+- [x] Create/edit/delete/archive/hide/feature/duplicate, multi-image upload, SKU/material/inventory/collection/status/SEO
+- [ ] Spanish/English description as separate fields (currently one description field)
+- [ ] Variants management UI (schema supports it, no admin UI yet)
+
+## Orders & Zelle — real
+- [x] Create order → Zelle instructions → screenshot upload → admin approval → processing
+- [x] Admin: approve, reject payment (new), status changes, tracking, cancel, notes (new), export
+- [x] Every action logged
+
+## Logs — real, searchable
+- [x] Admin login/logout, failed login, rate-limit hits, product/order/customer/coupon/settings changes, media uploads, AI conversations
+- [x] Search + category filter UI
+
+## Media & R2 — real
+- [x] Upload/list/search/rename/delete wired to R2 + DB
+- [ ] "Replace" as a distinct action (currently: delete + re-upload)
+
+## Security — fixed
+- [x] Hardcoded ChangeMe123! removed
+- [x] ADMIN_EMAIL / ADMIN_PASSWORD / ADMIN_NAME required env vars, refuses to seed without them
+- [x] Password hashed (bcrypt, cost 12)
+- [x] Admin logout route + logging (was completely missing before this pass)
+
+## Cloudflare Workers — config written, unverified
+- [x] @opennextjs/cloudflare + wrangler added
+- [x] open-next.config.ts, wrangler.jsonc
+- [x] build:worker / deploy / preview scripts
+- [x] Prisma driver adapters (@prisma/adapter-pg) + Hyperdrive-aware db.ts
+- [ ] Actual verified build/deploy (blocked by sandbox network access — see Known hard limits)
+
+## Final audit — partial
+- [x] npm install succeeds
+- [ ] npx prisma generate (blocked in sandbox)
+- [ ] npm run build (depends on generated client)
+- [ ] npm run build:worker (depends on the above + live Cloudflare access)
+- [x] tsc --noEmit clean except the ungenerated-Prisma-client cascade (re-verify after this batch)

@@ -1,0 +1,33 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "jay-la-joyeria",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2024-09-23",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "observability": {
+    "enabled": true
+  },
+  // Hyperdrive makes a standard TCP Postgres database reachable from the
+  // Workers runtime. Create one with:
+  //   npx wrangler hyperdrive create jay-la-joyeria-db --connection-string="<your DATABASE_URL>"
+  // then paste the returned id below. src/lib/db.ts reads this binding.
+  "hyperdrive": [
+    {
+      "binding": "HYPERDRIVE",
+      "id": "REPLACE_WITH_HYPERDRIVE_ID"
+    }
+  ],
+  // R2 bucket binding, if you'd rather access R2 directly from the Worker
+  // instead of over the public S3-compatible endpoint used in src/lib/storage/r2.ts.
+  // Uncomment and fill in once the bucket exists:
+  // "r2_buckets": [
+  //   { "binding": "MEDIA_BUCKET", "bucket_name": "jay-la-joyeria-media" }
+  // ],
+  "vars": {
+    "NEXT_PUBLIC_SITE_URL": "https://jaylajoyeria.com"
+  }
+}
