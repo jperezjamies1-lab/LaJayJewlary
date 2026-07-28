@@ -18,10 +18,18 @@ import { Pool } from "pg";
  *    `process.env.HYPERDRIVE.connectionString` when present (see
  *    wrangler.jsonc), falling back to DATABASE_URL otherwise.
  *
- * This file is written correctly against the documented Prisma + Cloudflare
- * Hyperdrive pattern but has not been exercised against a live Workers
- * deployment or a live Hyperdrive binding in this sandbox (no network
- * egress to Cloudflare here) — verify the first deploy in your own account.
+ * LAZY INITIALIZATION — this is the important part. Nothing in this module
+ * touches `process.env`, constructs a `pg.Pool`, or instantiates
+ * `PrismaClient` at import time. `next build`'s "Collecting page data" step
+ * imports every route module to statically analyze it, without ever
+ * calling into it — so any top-level throw or side effect in an imported
+ * module (like validating DATABASE_URL eagerly) breaks the build for every
+ * route that merely imports `{ prisma }`, even ones that never touch the
+ * database during that step. The `prisma` export below is a Proxy: importing
+ * it, or even holding a reference to it, does nothing. The real
+ * PrismaClient — and the DATABASE_URL/Hyperdrive validation that requires —
+ * is only constructed the first time a property is actually accessed, i.e.
+ * inside a route handler at request time, e.g. `prisma.product.findMany(...)`.
  */
 
 function getConnectionString(): string {
@@ -32,18 +40,32 @@ function getConnectionString(): string {
     return (hyperdrive as { connectionString: string }).connectionString;
   }
   const url = process.env.DATABASE_URL;
-  if (!url) throw new Error("DATABASE_URL is not set.");
+  if (!url) {
+    // Only ever thrown from inside getClient(), which only ever runs the
+    // first time a route handler actually calls prisma.<model>.<method>() —
+    // never at module import time, never during build-time page collection.
+    throw new Error(
+      "DATABASE_URL is not set. Set it (or a Cloudflare Hyperdrive binding) in your environment before making a database call."
+    );
+  }
   return url;
 }
 
-const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
+const globalForPrisma = globalThis as unknown as { __prismaClient?: PrismaClient };
 
-function createClient() {
-  const pool = new Pool({ connectionString: getConnectionString() });
-  const adapter = new PrismaPg(pool);
-  return new PrismaClient({ adapter });
+function getClient(): PrismaClient {
+  if (!globalForPrisma.__prismaClient) {
+    const pool = new Pool({ connectionString: getConnectionString() });
+    const adapter = new PrismaPg(pool);
+    globalForPrisma.__prismaClient = new PrismaClient({ adapter });
+  }
+  return globalForPrisma.__prismaClient;
 }
 
-export const prisma = globalForPrisma.prisma ?? createClient();
-
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
+export const prisma: PrismaClient = new Proxy({} as PrismaClient, {
+  get(_target, prop, receiver) {
+    const real = getClient();
+    const value = Reflect.get(real as object, prop, receiver);
+    return typeof value === "function" ? value.bind(real) : value;
+  },
+});
