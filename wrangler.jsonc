@@ -18,7 +18,7 @@
   "hyperdrive": [
     {
       "binding": "HYPERDRIVE",
-      "id": "REPLACE_WITH_HYPERDRIVE_ID"
+      "id": "ee477d12625543bebab3fbc54938d37e"
     }
   ],
   // R2 bucket binding, if you'd rather access R2 directly from the Worker
