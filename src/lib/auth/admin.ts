@@ -1,8 +1,6 @@
 import { cookies } from "next/headers";
-import jwt from "jsonwebtoken";
+import { verifyJwt } from "@/lib/jwt";
 import { prisma } from "@/lib/db";
-
-const JWT_SECRET = process.env.JWT_SECRET ?? "dev-secret-change-me";
 
 export interface AdminSession {
   id: string;
@@ -23,7 +21,7 @@ export async function getAdminSession(): Promise<AdminSession | null> {
 
   let payload: { sub: string };
   try {
-    payload = jwt.verify(token, JWT_SECRET) as { sub: string };
+    payload = await verifyJwt<{ sub: string }>(token);
   } catch {
     return null;
   }

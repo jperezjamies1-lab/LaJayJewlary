@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import type { SiteSettings } from "@/lib/settings";
+import type { SiteSettings } from "@/lib/settings.client";
 import ImageUploader, { type UploadedImage } from "@/components/admin/ImageUploader";
 
 function Field({

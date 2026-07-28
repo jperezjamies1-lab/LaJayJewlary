@@ -5,3 +5,5 @@ out
 .env.local
 *.log
 .DS_Store
+.open-next
+next-env.d.ts

@@ -153,7 +153,7 @@ export async function POST(req: NextRequest) {
     // can view the confirmation page and upload a Zelle screenshot without
     // creating a password. If they register later with the same email, the
     // existing order history carries over since it's keyed by customerId.
-    const token = signCustomerToken(customer.id);
+    const token = await signCustomerToken(customer.id);
     res.cookies.set(CUSTOMER_COOKIE, token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",

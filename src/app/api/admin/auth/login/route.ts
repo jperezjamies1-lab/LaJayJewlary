@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
+import { signJwt } from "@/lib/jwt";
 import { prisma } from "@/lib/db";
 import { logActivity } from "@/lib/log";
-
-const JWT_SECRET = process.env.JWT_SECRET ?? "dev-secret-change-me";
 
 // Simple in-memory rate limiter for local/dev use.
 // In production, replace with a durable store (Redis) keyed by IP + email.
@@ -41,10 +39,9 @@ export async function POST(req: NextRequest) {
 
   attempts.delete(key);
 
-  const token = jwt.sign(
+  const token = await signJwt(
     { sub: admin.id, role: admin.role.name },
-    JWT_SECRET,
-    { expiresIn: remember ? "30d" : "12h" }
+    remember ? "30d" : "12h"
   );
 
   const res = NextResponse.json({ ok: true });

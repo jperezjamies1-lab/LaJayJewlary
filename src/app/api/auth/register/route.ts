@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
 
     await logActivity({ category: "CUSTOMER", action: "REGISTER", entity: "Customer", entityId: customer.id });
 
-    const token = signCustomerToken(customer.id);
+    const token = await signCustomerToken(customer.id);
     const res = NextResponse.json({ ok: true, customer: { id: customer.id, name: customer.name, email: customer.email } }, { status: 201 });
     res.cookies.set(CUSTOMER_COOKIE, token, {
       httpOnly: true,

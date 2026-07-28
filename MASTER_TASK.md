@@ -120,3 +120,69 @@ and I'll pick up from the first unchecked item.
       "Assistant unavailable" reply (200, not an error) if called anyway with no key
 - [x] Search, products, checkout, orders, and all admin features verified to have
       no dependency on ANTHROPIC_API_KEY being set
+
+## Critical build fix: pg/Prisma leaking into the client bundle
+Root cause found and fixed: `src/contexts/SiteSettingsContext.tsx` ("use client")
+did `import { DEFAULT_SETTINGS, type SiteSettings } from "@/lib/settings"` — a
+*mixed* value+type import. Because it imported a real value (`DEFAULT_SETTINGS`)
+from a module whose top-level code also did `import { prisma } from "@/lib/db"`
+(which imports `pg`), the bundler had to include the whole module graph,
+pulling `pg` (and therefore Node's `fs`/`dns`/`net`/`tls`) into client code.
+(`SettingsForm.tsx`'s `import type { SiteSettings }` was already safe — pure
+type imports are fully erased — so that one wasn't the culprit.)
+
+Fix:
+- [x] New `src/lib/settings.client.ts` — pure types + `DEFAULT_SETTINGS`, zero
+      DB imports. Safe for any Client Component.
+- [x] `src/lib/settings.ts` now imports its types from `settings.client.ts` and
+      is marked `import "server-only"` — any future accidental client import
+      of this file now fails the build loudly instead of silently bundling
+      Prisma/pg.
+- [x] `SiteSettingsContext.tsx` and `SettingsForm.tsx` both now import from
+      `settings.client.ts`.
+- [x] New `/api/settings` GET route (Browser -> fetch -> Route Handler ->
+      Prisma -> DB) for any client code that wants a fresh read. The Provider
+      itself stays SSR-seeded from the root layout (a Server Component) for
+      performance — no client-side fetch waterfall or flash of default
+      content — while still never bundling Prisma into the browser.
+- [x] Verified via a real `npm run build`, not just `tsc`: with Google Fonts
+      temporarily stubbed out (this sandbox has no network path to
+      fonts.googleapis.com), webpack reported **"✓ Compiled successfully"**
+      with zero `fs`/`dns`/`net`/`tls`/`pg` module-not-found errors — the
+      exact class of error originally reported. The build then hit the
+      well-understood TS7006 implicit-any cascade from the ungenerated
+      Prisma client (same root cause documented throughout this file),
+      confirming that's the only remaining barrier in this sandbox
+      specifically, not an architecture problem.
+- [x] Also fixed a real unrelated bug surfaced during this diagnostic: a
+      stray `export const metadata_note = ...` left in `admin/login/page.tsx`
+      from an early pass, which Next.js's page-type checker correctly
+      rejects as an invalid export.
+
+## jsonwebtoken -> jose migration (Edge/Workers compatibility)
+`jsonwebtoken` uses Node's `crypto` module in ways the Edge runtime can't
+run. Next.js middleware *always* executes on the Edge runtime, so this broke
+Cloudflare Workers regardless of the pg issue above.
+- [x] New `src/lib/jwt.ts` — single shared signJwt/verifyJwt wrapper around
+      `jose`, which uses the Web Crypto API and works identically in
+      Node.js, Edge, and Workers.
+- [x] All four call sites converted: `middleware.ts`, `lib/auth/admin.ts`,
+      `lib/auth/customer.ts`, `api/admin/auth/login/route.ts`. jose's API is
+      async where jsonwebtoken's was sync — `signCustomerToken` and its three
+      call sites (register/login/checkout routes) updated to `await`.
+- [x] `jsonwebtoken` and `@types/jsonwebtoken` removed from package.json,
+      `jose` added. Verified zero remaining `jsonwebtoken` references
+      anywhere in the codebase (one doc comment mentions the name by way of
+      explanation, not an import).
+
+## Verification method used this pass
+Went beyond `tsc --noEmit` this time — ran actual `npm run build` and
+`npx @opennextjs/cloudflare build`. Both still fail in this specific sandbox,
+but for reasons fully diagnosed and unrelated to the reported bug:
+1. No network path to `fonts.googleapis.com` here (next/font/google fetches
+   at build time) — will work normally in any real CI/deploy environment.
+2. `npx prisma generate` still can't reach `binaries.prisma.sh` from this
+   sandbox — same limitation as every previous pass, causing the TS7006
+   cascade.
+Neither of these is fixable from inside this environment; both are
+standard outbound HTTPS calls that succeed in normal hosting/CI.

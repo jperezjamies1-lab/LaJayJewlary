@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import jwt from "jsonwebtoken";
+import { verifyJwt } from "@/lib/jwt";
 import { LOCALE_COOKIE } from "@/lib/locale";
-
-const JWT_SECRET = process.env.JWT_SECRET ?? "dev-secret-change-me";
 
 function detectLocale(req: NextRequest): "es" | "en" {
   const header = req.headers.get("accept-language") ?? "";
@@ -15,7 +13,7 @@ function detectLocale(req: NextRequest): "es" | "en" {
   return "es";
 }
 
-export function middleware(req: NextRequest) {
+export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   const res = NextResponse.next();
@@ -41,7 +39,7 @@ export function middleware(req: NextRequest) {
       return NextResponse.redirect(new URL("/admin/login", req.url));
     }
     try {
-      jwt.verify(token, JWT_SECRET);
+      await verifyJwt(token);
     } catch {
       const redirect = NextResponse.redirect(new URL("/admin/login", req.url));
       redirect.cookies.delete("jay_admin_session");

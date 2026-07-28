@@ -1,64 +1,11 @@
+import "server-only";
 import { prisma } from "@/lib/db";
+import { DEFAULT_SETTINGS, type SiteSettings } from "@/lib/settings.client";
 
-export interface SiteSettings {
-  storeName: string;
-  phone: string;
-  whatsapp: string;
-  email: string;
-  zelleNumber: string;
-  hoursEn: string;
-  hoursEs: string;
-  instagram: string;
-  tiktok: string;
-  currency: string;
-  taglineEn: string;
-  taglineEs: string;
-  heroImageUrl: string | null;
-  shippingPrice: number;
-  freeShippingThreshold: number;
-  seoTitle: string;
-  seoDescription: string;
-  policyShippingEs: string;
-  policyShippingEn: string;
-  policyReturnsEs: string;
-  policyReturnsEn: string;
-  policyPrivacyEs: string;
-  policyPrivacyEn: string;
-  policyTermsEs: string;
-  policyTermsEn: string;
-  policyCareEs: string;
-  policyCareEn: string;
-}
-
-export const DEFAULT_SETTINGS: SiteSettings = {
-  storeName: "Jay La Joyería",
-  phone: "512-789-2632",
-  whatsapp: "+15127892632",
-  email: "hello@jaylajoyeria.com",
-  zelleNumber: "512-789-2632",
-  hoursEn: "Mon–Sat, 10am–6pm CST",
-  hoursEs: "Lun–Sáb, 10am–6pm CST",
-  instagram: "https://instagram.com/jaylajoyeria",
-  tiktok: "https://tiktok.com/@jaylajoyeria",
-  currency: "USD",
-  taglineEn: "Fine jewelry, personally curated.",
-  taglineEs: "Joyería fina, curada personalmente.",
-  heroImageUrl: null,
-  shippingPrice: 15,
-  freeShippingThreshold: 200,
-  seoTitle: "Jay La Joyería | Joyería Fina",
-  seoDescription: "Joyería fina, curada personalmente. Anillos, collares, pulseras y más.",
-  policyShippingEs: "",
-  policyShippingEn: "",
-  policyReturnsEs: "",
-  policyReturnsEn: "",
-  policyPrivacyEs: "",
-  policyPrivacyEn: "",
-  policyTermsEs: "",
-  policyTermsEn: "",
-  policyCareEs: "",
-  policyCareEn: "",
-};
+// Re-exported so existing server-side imports of `SiteSettings`/`DEFAULT_SETTINGS`
+// from "@/lib/settings" keep working unchanged — only Client Components need
+// to switch to "@/lib/settings.client" (see that file for why).
+export { DEFAULT_SETTINGS, type SiteSettings };
 
 const SETTINGS_KEY = "site";
 
@@ -66,8 +13,11 @@ const SETTINGS_KEY = "site";
  * Reads settings from the database, falling back to defaults for any key
  * not yet set. This is what Header/Footer/checkout/emails/AI/metadata all
  * read from now instead of a hardcoded constant — an admin edit here
- * propagates everywhere on the next request (revalidated via the cache tag
- * below whenever /api/admin/settings writes).
+ * propagates everywhere on the next request.
+ *
+ * SERVER-ONLY. The `server-only` import above makes any accidental import
+ * of this file from a Client Component fail the build loudly instead of
+ * silently bundling Prisma/pg into browser code.
  */
 export async function getSiteSettings(): Promise<SiteSettings> {
   try {

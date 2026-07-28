@@ -1,8 +1,7 @@
 import { cookies } from "next/headers";
-import jwt from "jsonwebtoken";
+import { signJwt, verifyJwt } from "@/lib/jwt";
 import { prisma } from "@/lib/db";
 
-const JWT_SECRET = process.env.JWT_SECRET ?? "dev-secret-change-me";
 export const CUSTOMER_COOKIE = "jay_customer_session";
 
 export async function getCustomerSession() {
@@ -11,7 +10,7 @@ export async function getCustomerSession() {
 
   let payload: { sub: string };
   try {
-    payload = jwt.verify(token, JWT_SECRET) as { sub: string };
+    payload = await verifyJwt<{ sub: string }>(token);
   } catch {
     return null;
   }
@@ -21,6 +20,6 @@ export async function getCustomerSession() {
   return customer;
 }
 
-export function signCustomerToken(customerId: string) {
-  return jwt.sign({ sub: customerId }, JWT_SECRET, { expiresIn: "30d" });
+export async function signCustomerToken(customerId: string) {
+  return signJwt({ sub: customerId }, "30d");
 }

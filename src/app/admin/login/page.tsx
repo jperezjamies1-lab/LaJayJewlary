@@ -3,8 +3,6 @@
 import { useState } from "react";
 import Image from "next/image";
 
-export const metadata_note = "robots handled in a server layout in production";
-
 export default function AdminLoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
