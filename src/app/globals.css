@@ -1,0 +1,71 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: #0a0a0a;
+  color: #fdfdfd;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Signature thread element: a thin gold line that traces itself once, echoing a chain link */
+.thread-underline {
+  position: relative;
+  display: inline-block;
+}
+.thread-underline::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -6px;
+  height: 1px;
+  width: 100%;
+  background: linear-gradient(90deg, transparent, #d4af37 15%, #ff5fa2 50%, #d4af37 85%, transparent);
+  transform: scaleX(0);
+  transform-origin: left;
+  animation: thread 0.9s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation-delay: 0.15s;
+}
+
+/* focus visibility for accessibility */
+:focus-visible {
+  outline: 2px solid #d4af37;
+  outline-offset: 2px;
+}
+
+.eyebrow {
+  font-family: var(--font-inter), sans-serif;
+  font-size: 0.7rem;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  color: #d4af37;
+}
+
+::selection {
+  background: #d4af37;
+  color: #0a0a0a;
+}
+
+/* Subtle luxury glow used on logo hover per brand spec */
+.luxury-glow {
+  transition: filter 0.3s ease;
+}
+.luxury-glow:hover {
+  filter: drop-shadow(0 0 10px rgba(212, 175, 55, 0.45)) drop-shadow(0 0 18px rgba(255, 95, 162, 0.15));
+}
